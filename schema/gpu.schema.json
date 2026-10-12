@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/REPLACE_ME/harmonized-gpu-info/schema/gpu.schema.json",
+  "title": "GPU chip specification",
+  "description": "Canonical spec for a single NVIDIA datacenter GPU SKU (one exact chip + form-factor + memory-config combination). All compute fields are normalized to TFLOPS/TOPS and all bandwidth fields to GB/s regardless of the units used in the original source, so records are directly comparable with jq/yq across generations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "manufacturer",
+    "architecture",
+    "form_factor",
+    "memory_capacity_gb",
+    "memory_type",
+    "memory_bandwidth_gbps",
+    "last_verified",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "Version of this schema the record conforms to."
+    },
+
+    "name": {
+      "type": "string",
+      "description": "Canonical display name, including form factor/variant where it disambiguates, e.g. 'H100 SXM', 'H100 NVL 94GB'."
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Other names this SKU is commonly referred to by (marketing names, board names, cloud-provider labels)."
+    },
+    "manufacturer": {
+      "type": "string",
+      "const": "NVIDIA"
+    },
+    "architecture": {
+      "type": "string",
+      "description": "Microarchitecture codename, e.g. 'Ampere', 'Hopper', 'Blackwell', 'Blackwell Ultra'."
+    },
+    "gpu_chip": {
+      "type": ["string", "null"],
+      "description": "Internal chip/die codename if publicly known, e.g. 'GH100', 'GB100', 'GB102'."
+    },
+    "process_node_nm": {
+      "type": ["number", "null"],
+      "description": "Manufacturing process node in nanometers, e.g. 4 for TSMC 4N."
+    },
+    "release_date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Public announcement or availability date, ISO 8601 (YYYY-MM-DD)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["shipping", "announced", "eol", "unknown"],
+      "default": "unknown"
+    },
+
+    "form_factor": {
+      "type": "string",
+      "enum": ["PCIe", "SXM", "NVL"],
+      "description": "Physical/electrical form factor. PCIe = standard card in a PCIe slot, power-capped, NVLink absent or bridged. SXM = proprietary module soldered to an HGX baseboard, no PCIe edge connector, full NVLink domain, higher TDP ceiling. NVL = a factory-bonded pair of PCIe-form-factor cards sold as one SKU with a dedicated NVLink bridge and often higher-binned memory than the standalone PCIe card of the same chip."
+    },
+    "sxm_generation": {
+      "type": ["string", "null"],
+      "description": "Only set when form_factor is 'SXM'. The named SXM module/socket generation, e.g. 'SXM2' (V100), 'SXM4' (A100), 'SXM5' (H100/H200), 'SXM6' (B200/B300, Blackwell/Blackwell Ultra -- same socket generation shared by both). Null for PCIe/NVL records."
+    },
+    "nvlink_bridge_gpu_count": {
+      "type": ["integer", "null"],
+      "description": "Only set when form_factor is 'NVL'. Number of GPUs connected into one NVLink-bridged group via the dedicated bridge connector for this SKU. H100 NVL ships as a factory-bonded fixed pair (bridge_gpu_count=2). H200 NVL instead ships as an individual card supporting a field-installable bridge in 2-slot or 4-slot variants (2 or 4 GPUs per group) -- record the maximum supported group size here and note the bridge-size options in 'notes'. Null for PCIe/SXM records."
+    },
+    "slot_width": {
+      "type": ["integer", "null"],
+      "description": "Number of adjacent PCIe slot positions the physical card occupies (driven by heatsink thickness, which scales with tdp_watts_max). Only meaningful for form_factor 'PCIe' or 'NVL' (each NVL card is itself a slot-width PCIe card). Null for 'SXM' -- that form factor has no PCIe edge connector/slot at all, an architectural absence rather than an unpublished figure. Typical values: 1 (low-power cards like A10, L4) or 2 (higher-TDP cards like A10G, L40S, A100 PCIe, H100 PCIe/NVL, H200 NVL)."
+    },
+    "tdp_watts_max": {
+      "type": ["number", "null"],
+      "description": "Maximum configurable thermal design power, watts. Directly drives slot_width above -- a higher TDP needs a thicker heatsink, which needs more slot positions."
+    },
+    "cooling_type": {
+      "type": ["string", "null"],
+      "enum": ["air", "liquid", "hybrid", null]
+    },
+
+    "fp64_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP64 (vector/CUDA core) throughput, dense, TFLOPS." },
+    "fp64_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP64 Tensor Core throughput, dense, TFLOPS." },
+    "fp32_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP32 (vector/CUDA core) throughput, dense, TFLOPS." },
+    "tf32_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "TF32 Tensor Core throughput, dense, TFLOPS." },
+    "tf32_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber", "description": "TF32 Tensor Core throughput with structured sparsity, TFLOPS." },
+    "fp16_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP16 (vector/CUDA core) throughput, dense, TFLOPS." },
+    "fp16_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP16 Tensor Core throughput, dense, TFLOPS." },
+    "fp16_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP16 Tensor Core throughput with structured sparsity, TFLOPS." },
+    "bf16_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "BF16 Tensor Core throughput, dense, TFLOPS." },
+    "bf16_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber", "description": "BF16 Tensor Core throughput with structured sparsity, TFLOPS." },
+    "fp8_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP8 Tensor Core throughput, dense, TFLOPS." },
+    "fp8_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP8 Tensor Core throughput with structured sparsity, TFLOPS." },
+    "fp6_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP6 Tensor Core throughput, dense, TFLOPS. On architectures where NVIDIA publishes FP8 and FP6 as a single combined figure (shared tensor core datapath), this equals fp8_tensor_tflops — record that fact in notes." },
+    "fp6_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP6 Tensor Core throughput with structured sparsity, TFLOPS. See fp6_tensor_tflops note re: combined FP8/FP6 figures." },
+    "fp4_tensor_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP4 Tensor Core throughput, dense, TFLOPS." },
+    "fp4_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber", "description": "FP4 Tensor Core throughput with structured sparsity, TFLOPS." },
+    "int8_tensor_tops": { "$ref": "#/definitions/nullableNumber", "description": "INT8 Tensor Core throughput, dense, TOPS." },
+    "int8_tensor_sparse_tops": { "$ref": "#/definitions/nullableNumber", "description": "INT8 Tensor Core throughput with structured sparsity, TOPS." },
+
+    "memory_capacity_gb": {
+      "type": "number",
+      "description": "Onboard GPU memory capacity, GB (decimal, as marketed)."
+    },
+    "memory_type": {
+      "type": "string",
+      "description": "e.g. 'HBM2e', 'HBM3', 'HBM3e', 'GDDR6'."
+    },
+    "memory_bus_width_bits": { "type": ["integer", "null"] },
+    "memory_bandwidth_gbps": {
+      "type": "number",
+      "description": "Peak memory bandwidth, GB/s (normalized from TB/s if source used TB/s)."
+    },
+    "ecc_supported": { "type": ["boolean", "null"] },
+
+    "nvlink_generation": {
+      "type": ["integer", "null"],
+      "description": "NVLink generation number, e.g. 3 (A100), 4 (H100/H200), 5 (Blackwell/Blackwell Ultra). Null if the SKU has no NVLink (e.g. most PCIe cards)."
+    },
+    "nvlink_bandwidth_gbps": {
+      "type": ["number", "null"],
+      "description": "Per-GPU bidirectional NVLink bandwidth, GB/s (normalized from TB/s if needed). Null if no NVLink."
+    },
+    "nvlink_max_domain_size": {
+      "type": ["integer", "null"],
+      "description": "Maximum number of GPUs reachable in a single unified NVLink domain that this chip participates in (e.g. 8 for an HGX baseboard GPU, 72 for a Blackwell Ultra GPU in GB300 NVL72). This is a property of the systems the chip ships in, recorded here for quick single-record lookup; the authoritative aggregate lives on the node/rack record in systems/."
+    },
+    "pcie_generation": { "type": ["integer", "null"] },
+    "pcie_bandwidth_gbps": { "type": ["number", "null"] },
+    "c2c_bandwidth_gbps": {
+      "type": ["number", "null"],
+      "description": "NVLink-C2C bandwidth to a directly attached Grace CPU, GB/s. Null for GPUs with no CPU-coherent C2C link."
+    },
+
+    "cuda_cores": { "type": ["integer", "null"] },
+    "tensor_cores": { "type": ["integer", "null"] },
+    "tensor_core_generation": { "type": ["integer", "null"] },
+    "rt_cores": {
+      "type": ["integer", "null"],
+      "description": "Number of dedicated ray-tracing acceleration cores. Only present on GPUs built on graphics-capable dies (e.g. A10, A10G, L4, L40S). Null for compute-only dies with no ray-tracing hardware at all (e.g. A100, H100, H200, B200, B300) -- this is an architectural absence, not a missing/unpublished figure."
+    },
+    "rt_core_generation": {
+      "type": ["integer", "null"],
+      "description": "RT Core generation number, e.g. 2nd-gen (A10, A10G), 3rd-gen (L4, L40S, Ada Lovelace). Null wherever rt_cores is null."
+    },
+    "sm_count": { "type": ["integer", "null"] },
+    "multi_instance_max": {
+      "type": ["integer", "null"],
+      "description": "Maximum number of Multi-Instance GPU (MIG) partitions supported."
+    },
+
+    "last_verified": {
+      "type": "string",
+      "format": "date",
+      "description": "Date this record's values were last checked against sources, ISO 8601 (YYYY-MM-DD)."
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-text caveats: sparsity assumptions, combined/shared source figures, ambiguous table layouts, estimation methodology, etc."
+    },
+    "sources": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "minItems": 1,
+      "description": "Whole-record fallback source list. Used when a source covers most/all fields and per-field citation in _sources would be redundant."
+    },
+    "_sources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/sourceRef" },
+      "description": "Per-field citations, keyed by field name. Overrides/supplements the whole-record sources[] list for fields that came from a different or more specific source (e.g. a specific datasheet page)."
+    }
+  },
+  "definitions": {
+    "nullableNumber": {
+      "type": ["number", "null"]
+    },
+    "sourceRef": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      ]
+    }
+  }
+}

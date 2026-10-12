@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/REPLACE_ME/harmonized-gpu-info/schema/system.schema.json",
+  "title": "Multi-GPU system specification (node or rack tier)",
+  "description": "Canonical spec for a factory-integrated multi-GPU system that wires several GPU chips together: an HGX/DGX baseboard node (tier='node', typically 4-8 GPUs) or a rack-scale NVLink domain (tier='rack', e.g. GB200/GB300 NVL72, 72 GPUs). Does not duplicate per-chip specs — references the constituent chip record in gpus/ via gpu_model_ref and stores only system-level aggregates and topology. All compute fields are normalized to TFLOPS/PFLOPS-as-TFLOPS and bandwidth to GB/s, same convention as gpu.schema.json, so cross-tier jq queries stay in consistent units.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "name",
+    "manufacturer",
+    "tier",
+    "gpu_model_ref",
+    "gpu_count",
+    "last_verified",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+
+    "name": {
+      "type": "string",
+      "description": "Canonical display name, e.g. 'HGX B300', 'GB300 NVL72'."
+    },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "manufacturer": {
+      "type": "string",
+      "const": "NVIDIA"
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["node", "rack"],
+      "description": "'node' = a single baseboard/server unit (HGX/DGX, typically 4-8 GPUs, no rack-level NVLink switch fabric beyond the board). 'rack' = a multi-node rack-scale system unified into one NVLink domain via NVSwitch trays (e.g. NVL72)."
+    },
+    "release_date": {
+      "type": ["string", "null"],
+      "format": "date"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["shipping", "announced", "eol", "unknown"],
+      "default": "unknown"
+    },
+
+    "gpu_model_ref": {
+      "type": "string",
+      "description": "Filename (relative to gpus/) of the constituent GPU chip record this system is built from, e.g. 'b300-sxm-hgx.json'. Must resolve to an existing file; validated by scripts/validate.py."
+    },
+    "gpu_count": {
+      "type": "integer",
+      "description": "Total number of GPU chips in this system."
+    },
+    "cpu_model": {
+      "type": ["string", "null"],
+      "description": "e.g. 'NVIDIA Grace (Arm Neoverse V2)'. Null for GPU-only nodes with no integrated/superchip CPU (e.g. HGX B300)."
+    },
+    "cpu_count": {
+      "type": ["integer", "null"]
+    },
+    "cpu_core_count_total": {
+      "type": ["integer", "null"]
+    },
+    "superchip_config": {
+      "type": ["string", "null"],
+      "description": "Ratio/pairing of CPU to GPU in one superchip module, e.g. '1 Grace CPU : 2 Blackwell Ultra GPUs'. Null if not a superchip-based system."
+    },
+
+    "total_fp64_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp64_tensor_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp32_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_tf32_tensor_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_tf32_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp16_bf16_tensor_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp16_bf16_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp8_tensor_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp8_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp6_tensor_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp6_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp4_tensor_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_fp4_tensor_sparse_tflops": { "$ref": "#/definitions/nullableNumber" },
+    "total_int8_tensor_tops": { "$ref": "#/definitions/nullableNumber" },
+    "total_int8_tensor_sparse_tops": { "$ref": "#/definitions/nullableNumber" },
+
+    "total_gpu_memory_gb": { "type": ["number", "null"] },
+    "total_gpu_memory_bandwidth_gbps": { "type": ["number", "null"] },
+    "total_cpu_memory_gb": { "type": ["number", "null"] },
+    "total_fast_memory_gb": {
+      "type": ["number", "null"],
+      "description": "Combined GPU HBM + coherently-addressable CPU memory, GB, where the system exposes a unified/coherent memory pool (e.g. Grace-Blackwell NVLink-C2C). Null if not applicable."
+    },
+
+    "nvlink_generation": { "type": ["integer", "null"] },
+    "nvlink_domain_gpu_count": {
+      "type": ["integer", "null"],
+      "description": "Number of GPUs unified into a single NVLink domain by this system. Usually equals gpu_count for a rack, but distinguishes intra-node-only domains if a future multi-node 'node' record ever needs it."
+    },
+    "nvlink_per_gpu_bandwidth_gbps": {
+      "type": ["number", "null"],
+      "description": "Per-GPU bidirectional NVLink bandwidth, GB/s. Should match the referenced gpu_model_ref record's nvlink_bandwidth_gbps."
+    },
+    "total_nvlink_switch_bandwidth_gbps": {
+      "type": ["number", "null"],
+      "description": "Aggregate NVLink switch fabric bandwidth across the whole system, GB/s (normalized from TB/s if needed)."
+    },
+
+    "networking": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "nic_model": { "type": ["string", "null"], "description": "e.g. 'NVIDIA ConnectX-8 SuperNIC'." },
+        "per_gpu_bandwidth_gbps": { "type": ["number", "null"], "description": "Scale-out network bandwidth per GPU, GB/s (normalized from Gb/s if needed)." },
+        "fabric_options": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "e.g. ['NVIDIA Quantum-X800 InfiniBand', 'Spectrum-X Ethernet']."
+        }
+      }
+    },
+
+    "power_kw_max": {
+      "type": ["number", "null"],
+      "description": "Maximum rack/node power draw, kW."
+    },
+    "cooling_type": {
+      "type": ["string", "null"],
+      "enum": ["air", "liquid", "hybrid", null]
+    },
+    "multi_instance_max": { "type": ["integer", "null"] },
+
+    "last_verified": {
+      "type": "string",
+      "format": "date"
+    },
+    "notes": {
+      "type": ["string", "null"],
+      "description": "Free-text caveats: sparsity assumptions, whether totals are computed (per-GPU * gpu_count) vs. independently vendor-published, ambiguous source table layouts, etc."
+    },
+    "sources": {
+      "type": "array",
+      "items": { "type": "string", "format": "uri" },
+      "minItems": 1
+    },
+    "_sources": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/sourceRef" }
+    }
+  },
+  "definitions": {
+    "nullableNumber": {
+      "type": ["number", "null"]
+    },
+    "sourceRef": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        }
+      ]
+    }
+  }
+}
