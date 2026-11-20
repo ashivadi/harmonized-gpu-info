@@ -121,7 +121,9 @@ Because every record is flat (no nested `{value, source}` wrappers), every field
 
 ## Coverage
 
-**GPUs:** A10, A10G, L4, L40S, V100 SXM2, A100 (SXM4 40GB, SXM4 80GB, PCIe 80GB), H100 (SXM, PCIe, NVL), H200 (SXM, NVL), B200 (HGX-binned, GB200 NVL72-binned), B300 (HGX-binned, GB300 NVL72-binned).
+**GPUs:** A10, A10G, L4, L40S, V100 SXM2, A100 (SXM4 40GB, SXM4 80GB, PCIe 80GB), H100 (SXM, PCIe, NVL), H200 (SXM, NVL), B200 (HGX-binned, GB200 NVL72-binned), B300 (HGX-binned, GB300 NVL72-binned), RTX PRO 6000 Blackwell Server Edition, RTX PRO 4500 Blackwell Server Edition.
+
+**Note on the RTX PRO Server cards:** these are PCIe, passively-cooled, GDDR7 Blackwell cards built on the graphics-class GB202 / GB203 dies (they keep RT cores and have no NVLink), not the HBM compute dies used by B200/B300. Only the *Server Edition* SKUs are modeled; the Workstation and Max-Q editions of the same names have different power, memory bandwidth and cooling. NVIDIA's own tables for these cards do not label their Tensor Core figures as sparse or dense — see each record's `notes` for how that was resolved.
 
 **Note on A10 vs. A10G:** these are two genuinely different NVIDIA Ampere parts, not one part under two names — confirmed via an AWS-published NVIDIA datasheet distinct from NVIDIA's own A10 datasheet. A10G has a higher TDP (300W vs 150W) and more RT cores (80 vs 72), but *lower* Tensor Core throughput at every precision except plain FP32 — see `gpus/a10g.json`'s `notes` for the full comparison and a flagged anomaly in the source data.
 
